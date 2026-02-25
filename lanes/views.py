@@ -1,8 +1,34 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from .models import Entry, Lane
-from datetime import date
 
+# Login view
+def login_view(request):
+    username = request.POST.get("username")
+    password = request.POST.get("password")
+    user = authenticate(request, username=username, password=password)
+    if user:
+        login(request, user)
+    return redirect("home")
+
+# Logout view
+def logout_view(request):
+    logout(request)
+    return redirect("home")
+
+# Registration view
+def register_view(request):
+    username = request.POST.get("username")
+    password = request.POST.get("password")
+
+    if username and password:
+        if not User.objects.filter(username=username).exists():
+            User.objects.create_user(username=username, password=password)
+
+    return redirect("home")
+
+# Main view to display lanes and entries
 def home(request):
     # Use a logged in user if available, otherwise use a default "Guest" user
     if request.user.is_authenticated:

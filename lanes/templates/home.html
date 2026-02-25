@@ -85,17 +85,9 @@
 <button id="settingsBtn" onclick="openSettings()">⚙️</button>
 
 <!--- Add User Info Button --->
-<button id="userBtn" style="
-position:fixed;
-top:20px;
-right:80px;
-padding:8px 14px;
-border-radius:20px;
-border:none;
-background:#2c3e50;
-color:white;
-font-weight:bold;
-">
+<button id="userBtn" onclick="openUserModal()"
+style="position:fixed; top:20px; right:80px; padding:8px 14px; border-radius:20px;
+background:#2c3e50; color:white; border:none;">
     👤 {{ current_user.username }}
 </button>
 
@@ -135,6 +127,44 @@ background:rgba(0,0,0,0.5);">
     <button type="button" onclick="saveEntry()">Save</button>
     <button type="button" id="deleteBtn" onclick="deleteEntry()" style="display:none;">Delete</button>
     <button type="button" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div id="userModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.5); z-index:3000;">
+
+  <div style="background:white; width:320px; margin:100px auto; padding:20px; border-radius:10px;">
+    <h3>User Account</h3>
+
+    {% if current_user.username != "Guest" %}
+        <p>Logged in as <strong>{{ current_user.username }}</strong></p>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button>Logout</button>
+        </form>
+    {% else %}
+        <h4>Login</h4>
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            <input type="text" name="username" placeholder="Username" required><br><br>
+            <input type="password" name="password" placeholder="Password" required><br><br>
+            <button>Login</button>
+        </form>
+
+        <hr>
+
+        <h4>Create Account</h4>
+        <form method="post" action="{% url 'register' %}">
+            {% csrf_token %}
+            <input type="text" name="username" placeholder="New username" required><br><br>
+            <input type="password" name="password" placeholder="New password" required><br><br>
+            <button>Create Account</button>
+        </form>
+    {% endif %}
+
+    <br>
+    <button onclick="closeUserModal()">Close</button>
   </div>
 </div>
 
@@ -324,10 +354,19 @@ function togglePresent() {
     }
 }
 
+/* User Modal Functions */
+function openUserModal() {
+    document.getElementById("userModal").style.display = "block";
+}
+function closeUserModal() {
+    document.getElementById("userModal").style.display = "none";
+}
+
+
+/* Settings Functions */
 function openSettings() {
     document.getElementById("settingsModal").style.display = "block";
 }
-
 function closeSettings() {
     document.getElementById("settingsModal").style.display = "none";
 }
