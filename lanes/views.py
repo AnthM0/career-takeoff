@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Project
+from datetime import date
 
 def home(request):
     if request.method == "POST":
@@ -32,7 +33,13 @@ def home(request):
 
         return redirect("home")
 
-    projects = Project.objects.all()
+    def sort_key(p):
+        # Treat "present" as far future so it sorts last
+        end = p.end_date if p.end_date and p.end_date != "present" else "9999-12"
+        start = p.start_date if p.start_date else "0000-00"
+        return (end, start)
+
+    projects = sorted(Project.objects.all(), key=sort_key, reverse=True)
 
     lanes = [
         (1, "Education"),
