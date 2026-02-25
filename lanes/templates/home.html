@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resume Engine</title>
+    <style>
+    body { 
+        font-family: Arial; 
+        text-align: center; 
+    }
+
+    /* LANES */
+    .lanes { 
+        display: flex; 
+        justify-content: space-around; 
+        margin-top: 30px; 
+    }
+    .lane { 
+        width: 30%; 
+        border: 2px solid #ccc; 
+        min-height: 300px; 
+        padding: 10px; 
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
+
+    /* BUBBLES */
+    .bubble { 
+        background: lightblue; 
+        margin: 5px; 
+        padding: 8px; 
+        border-radius: 20px; 
+        cursor: pointer; 
+    }
+    .bubble:hover {
+        background: #9fd8ff;
+    }
+
+    /* MODAL BACKDROP */
+    #modal {
+        display: none;
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+
+    /* MODAL BOX */
+    #modal > div {
+        background: white; 
+        width: 300px; 
+        margin: 100px auto; 
+        padding: 20px; 
+        border-radius: 10px;
+        text-align: left;
+    }
+
+    /* SETTINGS BUTTON */
+    #settingsBtn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
+        background: #444;
+        color: white;
+        font-size: 22px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        z-index: 1100;
+    }
+
+    #settingsBtn:hover {
+        background: #666;
+    }
+</style>
+</head>
+
+<button id="settingsBtn" onclick="openSettings()">⚙️</button>
+
+<body>
+<h1>Resume Engine</h1>
+
+<!-- HIDDEN MAIN FORM -->
+<form method="post" id="mainForm">
+    {% csrf_token %}
+    <input type="hidden" name="project_id" id="project_id">
+    <input type="hidden" name="lane" id="lane">
+    <input type="hidden" name="name" id="name">
+    <input type="hidden" name="start_date" id="start">
+    <input type="hidden" name="end_date" id="end">
+</form>
+
+<!-- MODAL -->
+<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.5);">
+
+  <div style="background:white; width:300px; margin:100px auto; padding:20px; border-radius:10px;">
+    <h3 id="modalTitle">Add Project</h3>
+
+    <label>Project Name:</label><br>
+    <input type="text" id="modalName"><br><br>
+
+    <label>Start Date:</label><br>
+    <input type="month" id="modalStart"><br><br>
+
+    <label>End Date:</label><br>
+    <input type="month" id="modalEnd"><br><br>
+
+    <button type="button" onclick="saveProject()">Save</button>
+    <button type="button" id="deleteBtn" onclick="deleteProject()" style="display:none;">Delete</button>
+    <button type="button" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<div class="lanes">
+    {% for lane, title in lanes %}
+    <div class="lane">
+        <h3>{{ title }}</h3>
+
+        <!-- add button -->
+        <button type="button" onclick="addProject({{ lane }})">+</button>
+
+        <!-- bubbles -->
+        {% for project in projects %}
+            {% if project.lane == lane %}
+                <div class="bubble" 
+                    data-id="{{ project.id }}"
+                    data-lane="{{ lane }}"
+                    data-name="{{ project.name}}"
+                    data-start="{{ project.start_date }}"
+                    data-end="{{ project.end_date }}"
+                    onclick="editProject(this)">
+
+                    <strong>{{ project.name }}</strong><br>
+                    {% if project.start_date %}
+                        Start: {{ project.start_date|slice:":4" }}-{{ project.start_date|slice:"5:" }}<br>
+                    {% endif %}
+                    {% if project.end_date %}
+                        End: {{ project.end_date|slice:":4" }}-{{ project.end_date|slice:"5:" }}<br>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+let currentLane = null;
+let currentProjectId = null;
+
+function addProject(lane) {
+    currentLane = lane;
+    currentProjectId = null;
+
+    document.getElementById("modalTitle").innerText = "Add Project";
+    document.getElementById("modalName").value = "";
+    document.getElementById("modalStart").value = "";
+    document.getElementById("modalEnd").value = "";
+
+    document.getElementById("deleteBtn").style.display = "none";
+
+    document.getElementById("modal").style.display = "block";
+}
+
+function editProject(el) {
+    currentProjectId = el.dataset.id;
+    currentLane = el.dataset.lane;
+
+    document.getElementById("modalTitle").innerText = "Edit Project";
+    document.getElementById("modalName").value = el.dataset.name || "";
+    document.getElementById("modalStart").value = el.dataset.start || "";
+    document.getElementById("modalEnd").value = el.dataset.end || "";
+
+    /* Show delete button in edit mode*/
+    document.getElementById("deleteBtn").style.display = "inline";
+
+    document.getElementById("modal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+}
+
+function deleteProject() {
+    if (!confirm("Delete this project?")) return;
+
+    document.getElementById("project_id").value = currentProjectId;
+    document.getElementById("mainForm").action = "";
+    
+    let input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "delete";
+    input.value = "1";
+    document.getElementById("mainForm").appendChild(input);
+
+    document.getElementById("mainForm").submit();
+}
+
+function saveProject() {
+    if (!document.getElementById("modalName").value) {
+        alert("Project name is required");
+        return;
+    }
+    
+    document.getElementById("project_id").value = currentProjectId || "";
+    document.getElementById("lane").value = currentLane;
+    document.getElementById("name").value = document.getElementById("modalName").value;
+    document.getElementById("start").value = document.getElementById("modalStart").value;
+    document.getElementById("end").value = document.getElementById("modalEnd").value;
+
+    closeModal();
+    document.getElementById("mainForm").submit();
+}
+
+function openSettings() {
+    alert("Settings coming soon!");
+}
+</script>
+
+</body>
+</html>
