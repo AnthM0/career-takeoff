@@ -101,9 +101,9 @@
 background:rgba(0,0,0,0.5);">
 
   <div style="background:white; width:300px; margin:100px auto; padding:20px; border-radius:10px;">
-    <h3 id="modalTitle">Add Project</h3>
+    <h3 id="modalTitle">Add Entry</h3>
 
-    <label>Project Name:</label><br>
+    <label>Entry Name:</label><br>
     <input type="text" id="modalName"><br><br>
 
     <label>Start Date:</label><br>
@@ -116,46 +116,44 @@ background:rgba(0,0,0,0.5);">
     </label>
     <br><br>
 
-    <button type="button" onclick="saveProject()">Save</button>
-    <button type="button" id="deleteBtn" onclick="deleteProject()" style="display:none;">Delete</button>
+    <button type="button" onclick="saveEntry()">Save</button>
+    <button type="button" id="deleteBtn" onclick="deleteEntry()" style="display:none;">Delete</button>
     <button type="button" onclick="closeModal()">Cancel</button>
   </div>
 </div>
 
 <div class="lanes">
-    {% for lane, title in lanes %}
+    {% for lane in lanes %}
     <div class="lane">
-        <h3>{{ title }}</h3>
+        <h3>{{ lane.name }}</h3>
 
         <!-- add button -->
-        <button type="button" onclick="addProject({{ lane }})">+</button>
+        <button type="button" onclick="addEntry({{ lane.id }})">+</button>
 
         <!-- bubbles -->
-        {% for project in projects %}
-            {% if project.lane == lane %}
-                <div class="bubble" 
-                    data-id="{{ project.id }}"
-                    data-lane="{{ lane }}"
-                    data-name="{{ project.name}}"
-                    data-start="{{ project.start_date }}"
-                    data-end="{{ project.end_date }}"
-                    onclick="editProject(this)">
+        {% for entry in lane.sorted_entries %}
+            <div class="bubble" 
+                data-id="{{ entry.id }}"
+                data-lane="{{ lane.id }}"
+                data-name="{{ entry.name}}"
+                data-start="{{ entry.start_date }}"
+                data-end="{{ entry.end_date }}"
+                onclick="editEntry(this)">
 
-                    <strong>{{ project.name }}</strong><br>
-                    {% if project.start_date %}
-                        Start: {{ project.start_date|monthyear }}<br>
-                    {% endif %} 
-                    {% if project.end_date %}
-                        End: 
-                        {% if project.end_date == "Present" %}
-                            Present
-                        {% else %}
-                            {{ project.end_date|monthyear }}
-                        {% endif %}
-                        <br>
+                <strong>{{ entry.name }}</strong><br>
+                {% if entry.start_date %}
+                    Start: {{ entry.start_date|monthyear }}<br>
+                {% endif %} 
+                {% if entry.end_date %}
+                    End: 
+                    {% if entry.end_date == "Present" %}
+                        Present
+                    {% else %}
+                        {{ entry.end_date|monthyear }}
                     {% endif %}
-                </div>
-            {% endif %}
+                    <br>
+                {% endif %}
+            </div>
         {% endfor %}
     </div>
     {% endfor %}
@@ -165,11 +163,11 @@ background:rgba(0,0,0,0.5);">
 let currentLane = null;
 let currentProjectId = null;
 
-function addProject(lane) {
+function addEntry(lane) {
     currentLane = lane;
     currentProjectId = null;
 
-    document.getElementById("modalTitle").innerText = "Add Project";
+    document.getElementById("modalTitle").innerText = "Add Entry";
     document.getElementById("modalName").value = "";
     document.getElementById("modalStart").value = "";
     document.getElementById("modalEnd").value = "";
@@ -180,12 +178,12 @@ function addProject(lane) {
     document.getElementById("modal").style.display = "block";
 }
 
-function editProject(el) {
+function editEntry(el) {
     currentProjectId = el.dataset.id;
     currentLane = el.dataset.lane;
 
-    /* Populate modal fields with existing project data */
-    document.getElementById("modalTitle").innerText = "Edit Project";
+    /* Populate modal fields with existing entry data */
+    document.getElementById("modalTitle").innerText = "Edit Entry";
     document.getElementById("modalName").value = el.dataset.name || "";
     document.getElementById("modalStart").value = el.dataset.start || "";
 
@@ -211,8 +209,8 @@ function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
-function deleteProject() {
-    if (!confirm("Delete this project?")) return;
+function deleteEntry() {
+    if (!confirm("Delete this entry?")) return;
 
     document.getElementById("project_id").value = currentProjectId;
     document.getElementById("mainForm").action = "";
@@ -226,14 +224,14 @@ function deleteProject() {
     document.getElementById("mainForm").submit();
 }
 
-function saveProject() {
+function saveEntry() {
     const name = document.getElementById("modalName").value;
     const start = document.getElementById("modalStart").value;
     const endInput = document.getElementById("modalEnd").value;
     const isPresent = document.getElementById("presentCheck").checked;
     
     if (!document.getElementById("modalName").value) {
-        alert("Project name is required");
+        alert("Entry name is required");
         return;
     }
     if (!isPresent && start && endInput) {
