@@ -81,7 +81,23 @@
 </style>
 </head>
 
+<!--- Add Settings Button --->
 <button id="settingsBtn" onclick="openSettings()">⚙️</button>
+
+<!--- Add User Info Button --->
+<button id="userBtn" style="
+position:fixed;
+top:20px;
+right:80px;
+padding:8px 14px;
+border-radius:20px;
+border:none;
+background:#2c3e50;
+color:white;
+font-weight:bold;
+">
+    👤 {{ current_user.username }}
+</button>
 
 <body>
 <h1>Resume Engine</h1>
