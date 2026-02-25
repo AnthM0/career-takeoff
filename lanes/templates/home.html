@@ -1,3 +1,4 @@
+{% load monthyear %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -109,7 +110,11 @@ background:rgba(0,0,0,0.5);">
     <input type="month" id="modalStart"><br><br>
 
     <label>End Date:</label><br>
-    <input type="month" id="modalEnd"><br><br>
+    <input type="month" id="modalEnd">
+    <label>
+        <input type="checkbox" id="presentCheck" onchange="togglePresent()"> Present
+    </label>
+    <br><br>
 
     <button type="button" onclick="saveProject()">Save</button>
     <button type="button" id="deleteBtn" onclick="deleteProject()" style="display:none;">Delete</button>
@@ -138,10 +143,16 @@ background:rgba(0,0,0,0.5);">
 
                     <strong>{{ project.name }}</strong><br>
                     {% if project.start_date %}
-                        Start: {{ project.start_date|slice:":4" }}-{{ project.start_date|slice:"5:" }}<br>
-                    {% endif %}
+                        Start: {{ project.start_date|monthyear }}<br>
+                    {% endif %} 
                     {% if project.end_date %}
-                        End: {{ project.end_date|slice:":4" }}-{{ project.end_date|slice:"5:" }}<br>
+                        End: 
+                        {% if project.end_date == "Present" %}
+                            Present
+                        {% else %}
+                            {{ project.end_date|monthyear }}
+                        {% endif %}
+                        <br>
                     {% endif %}
                 </div>
             {% endif %}
@@ -162,9 +173,10 @@ function addProject(lane) {
     document.getElementById("modalName").value = "";
     document.getElementById("modalStart").value = "";
     document.getElementById("modalEnd").value = "";
+    document.getElementById("modalEnd").disabled = false;
+    document.getElementById("presentCheck").checked = false;
 
     document.getElementById("deleteBtn").style.display = "none";
-
     document.getElementById("modal").style.display = "block";
 }
 
@@ -172,10 +184,22 @@ function editProject(el) {
     currentProjectId = el.dataset.id;
     currentLane = el.dataset.lane;
 
+    /* Populate modal fields with existing project data */
     document.getElementById("modalTitle").innerText = "Edit Project";
     document.getElementById("modalName").value = el.dataset.name || "";
     document.getElementById("modalStart").value = el.dataset.start || "";
-    document.getElementById("modalEnd").value = el.dataset.end || "";
+
+    /* Handle end date ("present" option or inputted date) */
+    const endValue = el.dataset.end || "";
+    if (endValue === "Present") {
+        document.getElementById("modalEnd").value = "";
+        document.getElementById("modalEnd").disabled = true;
+        document.getElementById("presentCheck").checked = true;
+    } else {
+        document.getElementById("modalEnd").value = endValue;
+        document.getElementById("modalEnd").disabled = false;
+        document.getElementById("presentCheck").checked = false;
+    }
 
     /* Show delete button in edit mode*/
     document.getElementById("deleteBtn").style.display = "inline";
@@ -203,19 +227,47 @@ function deleteProject() {
 }
 
 function saveProject() {
+    const name = document.getElementById("modalName").value;
+    const start = document.getElementById("modalStart").value;
+    const endInput = document.getElementById("modalEnd").value;
+    const isPresent = document.getElementById("presentCheck").checked;
+    
     if (!document.getElementById("modalName").value) {
         alert("Project name is required");
         return;
     }
-    
+    if (!isPresent && start && endInput) {
+        if (endInput < start) {
+            alert("End date cannot be earlier than the start date.");
+            return;
+        }
+    }
+
+    let endValue = document.getElementById("modalEnd").value;
+    if (document.getElementById("presentCheck").checked) {
+        endValue = "Present";
+    }
+
     document.getElementById("project_id").value = currentProjectId || "";
     document.getElementById("lane").value = currentLane;
     document.getElementById("name").value = document.getElementById("modalName").value;
     document.getElementById("start").value = document.getElementById("modalStart").value;
-    document.getElementById("end").value = document.getElementById("modalEnd").value;
+    document.getElementById("end").value = endValue;
 
     closeModal();
     document.getElementById("mainForm").submit();
+}
+
+function togglePresent() {
+    const endInput = document.getElementById("modalEnd");
+    const presentBox = document.getElementById("presentCheck");
+
+    if (presentBox.checked) {
+        endInput.value = "";
+        endInput.disabled = true;
+    } else {
+        endInput.disabled = false;
+    }
 }
 
 function openSettings() {
