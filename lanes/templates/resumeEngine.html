@@ -1,0 +1,376 @@
+{% load monthyear %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resume Engine</title>
+    <style>
+    body { 
+        font-family: Arial; 
+        text-align: center; 
+    }
+
+    /* LANES */
+    .lanes { 
+        display: flex; 
+        justify-content: space-around; 
+        margin-top: 30px; 
+    }
+    .lane { 
+        width: 30%; 
+        border: 2px solid #ccc; 
+        min-height: 300px; 
+        padding: 10px; 
+        border-radius: 10px;
+        background: #f9f9f9;
+    }
+
+    /* BUBBLES */
+    .bubble { 
+        background: lightblue; 
+        margin: 5px; 
+        padding: 8px; 
+        border-radius: 20px; 
+        cursor: pointer; 
+    }
+    .bubble:hover {
+        background: #9fd8ff;
+    }
+
+    /* MODAL BACKDROP */
+    #modal {
+        display: none;
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+    }
+
+    /* MODAL BOX */
+    #modal > div {
+        background: white; 
+        width: 300px; 
+        margin: 100px auto; 
+        padding: 20px; 
+        border-radius: 10px;
+        text-align: left;
+    }
+
+    /* SETTINGS BUTTON */
+    #settingsBtn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: none;
+        background: #444;
+        color: white;
+        font-size: 22px;
+        cursor: pointer;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        z-index: 1100;
+    }
+
+    #settingsBtn:hover {
+        background: #666;
+    }
+</style>
+</head>
+
+<!--- Add Settings Button --->
+<button id="settingsBtn" onclick="openSettings()">⚙️</button>
+
+<!--- Add User Info Button --->
+<button id="userBtn" onclick="openUserModal()"
+style="position:fixed; top:20px; right:80px; padding:8px 14px; border-radius:20px;
+background:#2c3e50; color:white; border:none;">
+    👤 {{ current_user.username }}
+</button>
+
+<body>
+<h1>Resume Engine</h1>
+
+<!-- HIDDEN MAIN FORM -->
+<form method="post" id="mainForm">
+    {% csrf_token %}
+    <input type="hidden" name="project_id" id="project_id">
+    <input type="hidden" name="lane" id="lane">
+    <input type="hidden" name="name" id="name">
+    <input type="hidden" name="start_date" id="start">
+    <input type="hidden" name="end_date" id="end">
+</form>
+
+<!-- ENTRY MODAL -->
+<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.5);">
+
+  <div style="background:white; width:300px; margin:100px auto; padding:20px; border-radius:10px;">
+    <h3 id="modalTitle">Add Entry</h3>
+
+    <label>Entry Name:</label><br>
+    <input type="text" id="modalName"><br><br>
+
+    <label>Start Date:</label><br>
+    <input type="month" id="modalStart"><br><br>
+
+    <label>End Date:</label><br>
+    <input type="month" id="modalEnd">
+    <label>
+        <input type="checkbox" id="presentCheck" onchange="togglePresent()"> Present
+    </label>
+    <br><br>
+
+    <button type="button" onclick="saveEntry()">Save</button>
+    <button type="button" id="deleteBtn" onclick="deleteEntry()" style="display:none;">Delete</button>
+    <button type="button" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div id="userModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.5); z-index:3000;">
+
+  <div style="background:white; width:320px; margin:100px auto; padding:20px; border-radius:10px;">
+    <h3>User Account</h3>
+
+    {% if current_user.username != "Guest" %}
+        <p>Logged in as <strong>{{ current_user.username }}</strong></p>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button>Logout</button>
+        </form>
+    {% else %}
+        <h4>Login</h4>
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+            <input type="text" name="username" placeholder="Username" required><br><br>
+            <input type="password" name="password" placeholder="Password" required><br><br>
+            <button>Login</button>
+        </form>
+
+        <hr>
+
+        <h4>Create Account</h4>
+        <form method="post" action="{% url 'register' %}">
+            {% csrf_token %}
+            <input type="text" name="username" placeholder="New username" required><br><br>
+            <input type="password" name="password" placeholder="New password" required><br><br>
+            <button>Create Account</button>
+        </form>
+    {% endif %}
+
+    <br>
+    <button onclick="closeUserModal()">Close</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+background:rgba(0,0,0,0.5); z-index:2000;">
+
+  <div style="background:white; width:350px; margin:100px auto; padding:20px; border-radius:10px;">
+    <h3>Manage Lanes</h3>
+
+    <!-- ADD LANE -->
+    <form method="post" style="margin-bottom:15px;">
+        {% csrf_token %}
+        <input type="text" name="lane_name" placeholder="New lane name">
+        <button name="add_lane">Add</button>
+    </form>
+
+    <hr>
+
+    <!-- EXISTING LANES -->
+    {% for lane in lanes %}
+        <form method="post" style="margin-bottom:10px;">
+            {% csrf_token %}
+            <input type="hidden" name="lane_id" value="{{ lane.id }}">
+
+            <input type="text" name="new_name" value="{{ lane.name }}">
+            <button name="rename_lane">Rename</button>
+            <button name="delete_lane"
+                    onclick="return confirm('Delete this lane and ALL its entries?')">
+                Delete
+            </button>
+        </form>
+    {% endfor %}
+
+    <button onclick="closeSettings()">Close</button>
+  </div>
+</div>
+
+<!-- LANES AND ENTRIES -->
+<div class="lanes">
+    {% for lane in lanes %}
+    <div class="lane">
+        <h3>{{ lane.name }}</h3>
+
+        <!-- add button -->
+        <button type="button" onclick="addEntry({{ lane.id }}, '{{ lane.name }}')">+</button>
+
+        <!-- bubbles -->
+        {% for entry in lane.sorted_entries %}
+            <div class="bubble" 
+                data-id="{{ entry.id }}"
+                data-lane="{{ lane.id }}"
+                data-lane-name="{{ lane.name }}"
+                data-name="{{ entry.name}}"
+                data-start="{{ entry.start_date }}"
+                data-end="{{ entry.end_date }}"
+                onclick="editEntry(this)">
+
+                <strong>{{ entry.name }}</strong><br>
+                {% if entry.start_date %}
+                    Start: {{ entry.start_date|monthyear }}<br>
+                {% endif %} 
+                {% if entry.end_date %}
+                    End: 
+                    {% if entry.end_date == "Present" %}
+                        Present
+                    {% else %}
+                        {{ entry.end_date|monthyear }}
+                    {% endif %}
+                    <br>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- JAVASCRIPT -->
+<script>
+let currentLane = null;
+let currentProjectId = null;
+
+function addEntry(laneId, laneName) {
+    currentLane = laneId;
+    currentProjectId = null;
+
+    document.getElementById("modalTitle").innerText = "Add " + laneName;
+
+    document.getElementById("modalName").value = "";
+    document.getElementById("modalStart").value = "";
+    document.getElementById("modalEnd").value = "";
+    document.getElementById("modalEnd").disabled = false;
+    document.getElementById("presentCheck").checked = false;
+
+    document.getElementById("deleteBtn").style.display = "none";
+    document.getElementById("modal").style.display = "block";
+}
+
+function editEntry(el) {
+    currentProjectId = el.dataset.id;
+    currentLane = el.dataset.lane;
+    const laneName = el.dataset.laneName;
+
+    /* Populate modal fields with existing entry data */
+    document.getElementById("modalTitle").innerText = "Edit " + laneName;
+    document.getElementById("modalName").value = el.dataset.name || "";
+    document.getElementById("modalStart").value = el.dataset.start || "";
+
+    /* Handle end date ("present" option or inputted date) */
+    const endValue = el.dataset.end || "";
+    if (endValue === "Present") {
+        document.getElementById("modalEnd").value = "";
+        document.getElementById("modalEnd").disabled = true;
+        document.getElementById("presentCheck").checked = true;
+    } else {
+        document.getElementById("modalEnd").value = endValue;
+        document.getElementById("modalEnd").disabled = false;
+        document.getElementById("presentCheck").checked = false;
+    }
+
+    /* Show delete button in edit mode*/
+    document.getElementById("deleteBtn").style.display = "inline";
+
+    document.getElementById("modal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+}
+
+function deleteEntry() {
+    if (!confirm("Delete this entry?")) return;
+
+    document.getElementById("project_id").value = currentProjectId;
+    document.getElementById("mainForm").action = "";
+    
+    let input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "delete";
+    input.value = "1";
+    document.getElementById("mainForm").appendChild(input);
+
+    document.getElementById("mainForm").submit();
+}
+
+function saveEntry() {
+    const name = document.getElementById("modalName").value;
+    const start = document.getElementById("modalStart").value;
+    const endInput = document.getElementById("modalEnd").value;
+    const isPresent = document.getElementById("presentCheck").checked;
+    
+    if (!document.getElementById("modalName").value) {
+        alert("Entry name is required");
+        return;
+    }
+    if (!isPresent && start && endInput) {
+        if (endInput < start) {
+            alert("End date cannot be earlier than the start date.");
+            return;
+        }
+    }
+
+    let endValue = document.getElementById("modalEnd").value;
+    if (document.getElementById("presentCheck").checked) {
+        endValue = "Present";
+    }
+
+    document.getElementById("project_id").value = currentProjectId || "";
+    document.getElementById("lane").value = currentLane;
+    document.getElementById("name").value = document.getElementById("modalName").value;
+    document.getElementById("start").value = document.getElementById("modalStart").value;
+    document.getElementById("end").value = endValue;
+
+    closeModal();
+    document.getElementById("mainForm").submit();
+}
+
+function togglePresent() {
+    const endInput = document.getElementById("modalEnd");
+    const presentBox = document.getElementById("presentCheck");
+
+    if (presentBox.checked) {
+        endInput.value = "";
+        endInput.disabled = true;
+    } else {
+        endInput.disabled = false;
+    }
+}
+
+/* User Modal Functions */
+function openUserModal() {
+    document.getElementById("userModal").style.display = "block";
+}
+function closeUserModal() {
+    document.getElementById("userModal").style.display = "none";
+}
+
+
+/* Settings Functions */
+function openSettings() {
+    document.getElementById("settingsModal").style.display = "block";
+}
+function closeSettings() {
+    document.getElementById("settingsModal").style.display = "none";
+}
+</script>
+
+</body>
+</html>

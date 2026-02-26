@@ -28,8 +28,11 @@ def register_view(request):
 
     return redirect("home")
 
-# Main view to display lanes and entries
 def home(request):
+    return render(request, "home.html")
+
+# Resume Engine view to display lanes and entries
+def resume_engine(request):
     # Use a logged in user if available, otherwise use a default "Guest" user
     if request.user.is_authenticated:
         current_user = request.user
@@ -118,7 +121,7 @@ def home(request):
     for lane in lanes:
         lane.sorted_entries = sorted(lane.entries.all(), key=sort_key, reverse=True)
 
-    return render(request, "home.html", {
+    return render(request, "resumeEngine.html", {
         "lanes": lanes,
         "current_user": current_user
     })
