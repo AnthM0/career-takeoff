@@ -100,8 +100,7 @@ background:#2c3e50; color:white; border:none;">
     <input type="hidden" name="project_id" id="project_id">
     <input type="hidden" name="lane" id="lane">
     <input type="hidden" name="name" id="name">
-    <input type="hidden" name="start_date" id="start">
-    <input type="hidden" name="end_date" id="end">
+    <input type="hidden" name="details" id="detailsInput">
 </form>
 
 <!-- ENTRY MODAL -->
@@ -122,6 +121,11 @@ background:rgba(0,0,0,0.5);">
     <label>
         <input type="checkbox" id="presentCheck" onchange="togglePresent()"> Present
     </label>
+    <br><br>
+
+    <div id="dynamicFields"></div>
+
+    <button type="button" onclick="addFieldPrompt('text')">Add Text Field</button>
     <br><br>
 
     <button type="button" onclick="saveEntry()">Save</button>
@@ -210,32 +214,35 @@ background:rgba(0,0,0,0.5); z-index:2000;">
         <h3>{{ lane.name }}</h3>
 
         <!-- add button -->
-        <button type="button" onclick="addEntry({{ lane.id }}, '{{ lane.name }}')">+</button>
+        <button onclick="addEntry('{{ lane.name }}', '{{ lane.id }}')">+</button>
 
         <!-- bubbles -->
         {% for entry in lane.sorted_entries %}
-            <div class="bubble" 
+            <div class="bubble"
                 data-id="{{ entry.id }}"
-                data-lane="{{ lane.id }}"
-                data-lane-name="{{ lane.name }}"
-                data-name="{{ entry.name}}"
-                data-start="{{ entry.details.start_date|default:'' }}"
-                data-end="{{ entry.details.end_date|default:'' }}"
+                data-name="{{ entry.name }}"
+                data-lane="{{ lane.name }}"
+                data-laneid="{{ lane.id }}"
+                data-details='{{ entry.details_json|safe }}'
                 onclick="editEntry(this)">
 
-                <strong>{{ entry.name }}</strong><br>
-                {% if entry.details.start_date|default:'' %}
-                    Start: {{ entry.details.start_date|monthyear }}<br>
-                {% endif %} 
-                {% if entry.details.end_date|default:'' %}
-                    End: 
+                {{ entry.name }}<br>
+                {% if entry.details.start_date %}
+                    <small>
+                    {{ entry.details.start_date|monthyear }} - 
                     {% if entry.details.end_date == "Present" %}
                         Present
-                    {% else %}
+                    {% elif entry.details.end_date %}
                         {{ entry.details.end_date|monthyear }}
                     {% endif %}
-                    <br>
+                    </small><br>
                 {% endif %}
+
+                {% for key, value in entry.details.items %}
+                    {% if key != "start_date" and key != "end_date" and value %}
+                        <small>{{ key }}: {{ value }}</small><br>
+                    {% endif %}
+                {% endfor %}
             </div>
         {% endfor %}
     </div>
@@ -244,57 +251,65 @@ background:rgba(0,0,0,0.5); z-index:2000;">
 
 <!-- JAVASCRIPT -->
 <script>
-let currentLane = null;
+let currentLaneName = null;
+let currentLaneId = null;
 let currentProjectId = null;
+let currentDetails = {};
 
-function addEntry(laneId, laneName) {
-    currentLane = laneId;
+/* Add entry function clears modal, sets current lane, and shows modal for new entry. */
+function addEntry(laneName, laneId) {
+    currentLaneName = laneName;
+    currentLaneId = laneId;
     currentProjectId = null;
 
     document.getElementById("modalTitle").innerText = "Add " + laneName;
-
     document.getElementById("modalName").value = "";
     document.getElementById("modalStart").value = "";
     document.getElementById("modalEnd").value = "";
-    document.getElementById("modalEnd").disabled = false;
     document.getElementById("presentCheck").checked = false;
+
+    currentDetails = {};
+    renderFields();
 
     document.getElementById("deleteBtn").style.display = "none";
     document.getElementById("modal").style.display = "block";
 }
 
+/* Edit entry function populates modal with existing data and shows delete button. */
 function editEntry(el) {
     currentProjectId = el.dataset.id;
-    currentLane = el.dataset.lane;
-    const laneName = el.dataset.laneName;
+    currentLaneName = el.dataset.lane;
+    currentLaneId = el.dataset.laneid;
+    currentDetails = JSON.parse(el.dataset.details || "{}");
 
     /* Populate modal fields with existing entry data */
-    document.getElementById("modalTitle").innerText = "Edit " + laneName;
+    document.getElementById("modalTitle").innerText = "Edit " + currentLaneName;
     document.getElementById("modalName").value = el.dataset.name || "";
-    document.getElementById("modalStart").value = el.dataset.start || "";
-
-    /* Handle end date ("present" option or inputted date) */
-    const endValue = el.dataset.end || "";
-    if (endValue === "Present") {
+    document.getElementById("modalStart").value = currentDetails.start_date || "";
+    
+    if (currentDetails.end_date === "Present") {
         document.getElementById("modalEnd").value = "";
         document.getElementById("modalEnd").disabled = true;
         document.getElementById("presentCheck").checked = true;
-    } else {
-        document.getElementById("modalEnd").value = endValue;
+    } else if (currentDetails.end_date) {
+        document.getElementById("modalEnd").value = currentDetails.end_date;
         document.getElementById("modalEnd").disabled = false;
         document.getElementById("presentCheck").checked = false;
     }
 
+    renderFields();
+
     /* Show delete button in edit mode*/
     document.getElementById("deleteBtn").style.display = "inline";
-
     document.getElementById("modal").style.display = "block";
 }
 
+/* Close modal simply hides the modal div. */
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
+/* Delete entry function confirms deletion, sets form data, and submits with delete flag. */
 function deleteEntry() {
     if (!confirm("Delete this entry?")) return;
 
@@ -310,12 +325,16 @@ function deleteEntry() {
     document.getElementById("mainForm").submit();
 }
 
+/* Save entry function validates input, sets form data, and submits for create/edit. */
 function saveEntry() {
     const name = document.getElementById("modalName").value;
     const start = document.getElementById("modalStart").value;
     const endInput = document.getElementById("modalEnd").value;
     const isPresent = document.getElementById("presentCheck").checked;
-    
+
+    currentDetails.start_date = start || "";
+    currentDetails.end_date = isPresent ? "Present" : endInput || "";
+
     if (!document.getElementById("modalName").value) {
         alert("Entry name is required");
         return;
@@ -327,21 +346,107 @@ function saveEntry() {
         }
     }
 
-    let endValue = document.getElementById("modalEnd").value;
-    if (document.getElementById("presentCheck").checked) {
-        endValue = "Present";
-    }
-
     document.getElementById("project_id").value = currentProjectId || "";
-    document.getElementById("lane").value = currentLane;
+    document.getElementById("lane").value = currentLaneId;
     document.getElementById("name").value = document.getElementById("modalName").value;
-    document.getElementById("start").value = document.getElementById("modalStart").value;
-    document.getElementById("end").value = endValue;
+    document.getElementById("detailsInput").value = JSON.stringify(currentDetails);
 
     closeModal();
     document.getElementById("mainForm").submit();
 }
 
+/* Dynamically show the fields that are in the entry's details. This allows for flexible fields beyond just start/end dates. */
+function renderFields() {
+    const container = document.getElementById("dynamicFields");
+    container.innerHTML = "";
+
+    for (const key in currentDetails) {
+        if (key === "start_date" || key === "end_date") continue;
+
+        const value = currentDetails[key];
+
+        // wrapper div per field
+        const fieldWrapper = document.createElement("div");
+        fieldWrapper.style.marginBottom = "10px";
+
+        // delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "✖";
+        deleteBtn.style.marginRight = "6px";
+        deleteBtn.style.fontSize = "12px";
+        deleteBtn.style.cursor = "pointer";
+        deleteBtn.onclick = () => {
+            delete currentDetails[key];
+            renderFields();
+        };
+
+        // label
+        const label = document.createElement("label");
+        label.innerText = key + ":";
+
+        fieldWrapper.appendChild(deleteBtn);
+        fieldWrapper.appendChild(label);
+        fieldWrapper.appendChild(document.createElement("br"));
+
+        // TEXT FIELD
+        if (typeof value === "string") {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.value = value;
+            input.oninput = () => {
+                currentDetails[key] = input.value;
+            };
+
+            fieldWrapper.appendChild(input);
+        }
+
+        // LIST FIELD (future)
+        else if (Array.isArray(value)) {
+            const p = document.createElement("p");
+            p.innerText = "(list field)";
+            fieldWrapper.appendChild(p);
+        }
+
+        // ENTRY FIELD (future)
+        else if (value === "__NEW_ENTRY__" || typeof value === "number") {
+            const p = document.createElement("p");
+            p.innerText = "(Entry)";
+            fieldWrapper.appendChild(p);
+        }
+
+        container.appendChild(fieldWrapper);
+    }
+}
+
+/* Add field prompt allows user to add custom fields to the entry. It updates the currentDetails object and re-renders the fields. */
+function addFieldPrompt(fieldType='text') {
+    const name = prompt("Enter field name:");
+    if (!name) return;
+    if (currentDetails[name]) {
+        alert("Field already exists.");
+        return;
+    }
+
+    /* Initialize the new field based on the specified type. Currently supports text, list, and entry types. */
+    if (fieldType === "text") {
+        currentDetails[name] = "";
+    }
+    else if (fieldType === "list") {
+        currentDetails[name] = [];
+    }
+    else if (fieldType === "entry") {
+        currentDetails[name] = "__NEW ENTRY__"; // Placeholder for future entry reference
+    }
+    else {
+        alert("Unknown field type.");
+        return;
+    }
+
+    currentDetails[name] = "";
+    renderFields();
+}
+
+/* Toggle present function disables end date input and clears its value when "present" is checked, and re-enables it when unchecked. */
 function togglePresent() {
     const endInput = document.getElementById("modalEnd");
     const presentBox = document.getElementById("presentCheck");
@@ -370,6 +475,7 @@ function openSettings() {
 function closeSettings() {
     document.getElementById("settingsModal").style.display = "none";
 }
+
 </script>
 
 </body>

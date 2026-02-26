@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from .models import Entry, Lane
+import json
 
 # Login view
 def login_view(request):
@@ -83,8 +84,9 @@ def resume_engine(request):
         entry_id = request.POST.get("project_id")
         name = request.POST.get("name")
         lane_id = request.POST.get("lane")
-        start_date = request.POST.get("start_date") or None
-        end_date = request.POST.get("end_date") or None
+        # NEW: load details dict from hidden field
+        details_json = request.POST.get("details", "{}")
+        details = json.loads(details_json)
 
         # Get lane object
         lane_obj = get_object_or_404(Lane, id=lane_id, user=current_user)
@@ -94,8 +96,7 @@ def resume_engine(request):
             entry = get_object_or_404(Entry, id=entry_id, user=current_user)
             entry.name = name
             entry.lane = lane_obj
-            entry.update_detail("start_date", start_date)
-            entry.update_detail("end_date", end_date)
+            entry.details = details
             entry.save()
 
         # Create new entry if no entry_id is provided
@@ -105,7 +106,7 @@ def resume_engine(request):
                     user=current_user,
                     name=name,
                     lane=lane_obj,
-                    details={"start_date": start_date, "end_date": end_date}
+                    details=details
                 )
 
         return redirect("resume_engine")
@@ -119,6 +120,8 @@ def resume_engine(request):
     lanes = Lane.objects.filter(user=current_user).prefetch_related("entries")
     for lane in lanes:
         lane.sorted_entries = sorted(lane.entries.all(), key=sort_key, reverse=True)
+        for entry in lane.sorted_entries:
+            entry.details_json = json.dumps(entry.details or {})
 
     return render(request, "resumeEngine.html", {
         "lanes": lanes,
