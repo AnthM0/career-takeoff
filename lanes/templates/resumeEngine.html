@@ -219,20 +219,20 @@ background:rgba(0,0,0,0.5); z-index:2000;">
                 data-lane="{{ lane.id }}"
                 data-lane-name="{{ lane.name }}"
                 data-name="{{ entry.name}}"
-                data-start="{{ entry.start_date }}"
-                data-end="{{ entry.end_date }}"
+                data-start="{{ entry.details.start_date|default:'' }}"
+                data-end="{{ entry.details.end_date|default:'' }}"
                 onclick="editEntry(this)">
 
                 <strong>{{ entry.name }}</strong><br>
-                {% if entry.start_date %}
-                    Start: {{ entry.start_date|monthyear }}<br>
+                {% if entry.details.start_date|default:'' %}
+                    Start: {{ entry.details.start_date|monthyear }}<br>
                 {% endif %} 
-                {% if entry.end_date %}
+                {% if entry.details.end_date|default:'' %}
                     End: 
-                    {% if entry.end_date == "Present" %}
+                    {% if entry.details.end_date == "Present" %}
                         Present
                     {% else %}
-                        {{ entry.end_date|monthyear }}
+                        {{ entry.details.end_date|monthyear }}
                     {% endif %}
                     <br>
                 {% endif %}

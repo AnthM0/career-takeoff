@@ -52,7 +52,7 @@ def resume_engine(request):
             lane_name = request.POST.get("lane_name")
             if lane_name:
                 Lane.objects.create(user=current_user, name=lane_name)
-            return redirect("home")
+            return redirect("resume_engine")
         
         # Rename lane if "rename_lane" is in POST data
         if "rename_lane" in request.POST:
@@ -62,14 +62,14 @@ def resume_engine(request):
                 lane = get_object_or_404(Lane, id=lane_id, user=current_user)
                 lane.name = new_name
                 lane.save()
-            return redirect("home")
+            return redirect("resume_engine")
         
         # Delete lane if "delete_lane" is in POST data
         if "delete_lane" in request.POST:
             lane_id = request.POST.get("lane_id")
             lane = get_object_or_404(Lane, id=lane_id, user=current_user)
             lane.delete()
-            return redirect("home")
+            return redirect("resume_engine")
 
         # ----- ENTRY ACTIONS -----
         # Delete entry if "delete" is in POST data
@@ -77,7 +77,7 @@ def resume_engine(request):
             entry_id = request.POST.get("project_id")
             if entry_id:
                 Entry.objects.filter(id=entry_id, user=current_user).delete()
-            return redirect("home")
+            return redirect("resume_engine")
 
         # Read form data for creating/editing entry
         entry_id = request.POST.get("project_id")
@@ -94,8 +94,8 @@ def resume_engine(request):
             entry = get_object_or_404(Entry, id=entry_id, user=current_user)
             entry.name = name
             entry.lane = lane_obj
-            entry.start_date = start_date
-            entry.end_date = end_date
+            entry.update_detail("start_date", start_date)
+            entry.update_detail("end_date", end_date)
             entry.save()
 
         # Create new entry if no entry_id is provided
@@ -105,16 +105,15 @@ def resume_engine(request):
                     user=current_user,
                     name=name,
                     lane=lane_obj,
-                    start_date=start_date,
-                    end_date=end_date
+                    details={"start_date": start_date, "end_date": end_date}
                 )
 
-        return redirect("home")
+        return redirect("resume_engine")
 
     def sort_key(entry):
         # Treat "present" as far future so it sorts last
-        end = entry.end_date if entry.end_date and entry.end_date != "Present" else "9999-12"
-        start = entry.start_date if entry.start_date else "0000-00"
+        end = entry.get_detail("end_date") if entry.get_detail("end_date") and entry.get_detail("end_date") != "Present" else "9999-12"
+        start = entry.get_detail("start_date") if entry.get_detail("start_date") else "0000-00"
         return (end, start)
 
     lanes = Lane.objects.filter(user=current_user).prefetch_related("entries")
