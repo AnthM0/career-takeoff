@@ -30,7 +30,11 @@ def register_view(request):
     return redirect("home")
 
 def home(request):
-    return render(request, "home.html")
+    if request.user.is_authenticated:
+        current_user = request.user
+    else:
+        current_user = User.objects.get(username="Guest")
+    return render(request, "home.html", {"current_user": current_user})
 
 # Resume Engine view to display lanes and entries
 def resume_engine(request):

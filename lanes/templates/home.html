@@ -1,34 +1,24 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Career Takeoff</title>
-    <style>
-        body {
-            font-family: Arial;
-            text-align: center;
-            margin-top: 40px;
-        }
+{% extends "base.html" %}
 
-        .plane {
-            width: 250px;
-        }
+{% block title %}Career Takeoff{% endblock %}
 
-        button {
-            margin-top: 30px;
-            padding: 12px 24px;
-            font-size: 18px;
-            cursor: pointer;
-            border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
+{% block extra_styles %}
+.plane {
+    width: 250px;
+}
+button {
+    margin-top: 30px;
+    padding: 12px 24px;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 8px;
+}
+{% endblock %}
 
+{% block content %}
 <img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExeG9mMnAweG9mM25pZWF5aHp1bmduMTNiYjV1dmtwcXlsMWw1NmViMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JSjVUhKot7GfyP5cUZ/giphy.gif" class="plane" alt="Animated Plane">
 
 <h1>Career Takeoff</h1>
 
 <button onclick="location.href='/resumeEngine/'">Resume Engine</button>
-
-</body>
-</html>
+{% endblock %}

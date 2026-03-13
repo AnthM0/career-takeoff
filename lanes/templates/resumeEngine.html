@@ -1,98 +1,61 @@
+{% extends "base.html" %}
 {% load monthyear %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Resume Engine</title>
-    <style>
-    body { 
-        font-family: Arial; 
-        text-align: center; 
-    }
 
-    /* LANES */
-    .lanes { 
-        display: flex; 
-        justify-content: space-around; 
-        margin-top: 30px; 
-    }
-    .lane { 
-        width: 30%; 
-        border: 2px solid #ccc; 
-        min-height: 300px; 
-        padding: 10px; 
-        border-radius: 10px;
-        background: #f9f9f9;
-    }
+{% block title %}Resume Engine{% endblock %}
 
-    /* BUBBLES */
-    .bubble { 
-        background: lightblue; 
-        margin: 5px; 
-        padding: 8px; 
-        border-radius: 20px; 
-        cursor: pointer; 
-    }
-    .bubble:hover {
-        background: #9fd8ff;
-    }
+{% block extra_styles %}
+/* LANES */
+.lanes {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 30px;
+}
+.lane {
+    width: 30%;
+    border: 2px solid #ccc;
+    min-height: 300px;
+    padding: 10px;
+    border-radius: 10px;
+    background: #f9f9f9;
+}
 
-    /* MODAL BACKDROP */
-    #modal {
-        display: none;
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        z-index: 1000;
-    }
+/* BUBBLES */
+.bubble {
+    background: lightblue;
+    margin: 5px;
+    padding: 8px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+.bubble:hover {
+    background: #9fd8ff;
+}
 
-    /* MODAL BOX */
-    #modal > div {
-        background: white; 
-        width: 300px; 
-        margin: 100px auto; 
-        padding: 20px; 
-        border-radius: 10px;
-        text-align: left;
-    }
+/* SETTINGS BUTTON */
+#settingsBtn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background: #444;
+    color: white;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    z-index: 1100;
+}
+#settingsBtn:hover {
+    background: #666;
+}
+{% endblock %}
 
-    /* SETTINGS BUTTON */
-    #settingsBtn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        border: none;
-        background: #444;
-        color: white;
-        font-size: 22px;
-        cursor: pointer;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        z-index: 1100;
-    }
+{% block content %}
 
-    #settingsBtn:hover {
-        background: #666;
-    }
-</style>
-</head>
-
-<!--- Add Settings Button --->
+<!-- SETTINGS BUTTON -->
 <button id="settingsBtn" onclick="openSettings()">⚙️</button>
-
-<!--- Add User Info Button --->
-<button id="userBtn" onclick="openUserModal()"
-style="position:fixed; top:20px; right:80px; padding:8px 14px; border-radius:20px;
-background:#2c3e50; color:white; border:none;">
-    👤 {{ current_user.username }}
-</button>
-
-<body>
-<h1>Resume Engine</h1>
 
 <!-- HIDDEN MAIN FORM -->
 <form method="post" id="mainForm">
@@ -104,96 +67,53 @@ background:#2c3e50; color:white; border:none;">
 </form>
 
 <!-- ENTRY MODAL -->
-<div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-background:rgba(0,0,0,0.5);">
+<div id="modal" class="modal-backdrop">
+    <div class="modal-box">
+        <h3 id="modalTitle">Add Entry</h3>
 
-  <div style="background:white; width:300px; margin:100px auto; padding:20px; border-radius:10px;">
-    <h3 id="modalTitle">Add Entry</h3>
+        <label>Entry Name:</label><br>
+        <input type="text" id="modalName"><br><br>
 
-    <label>Entry Name:</label><br>
-    <input type="text" id="modalName"><br><br>
+        <label>Start Date:</label><br>
+        <input type="month" id="modalStart"><br><br>
 
-    <label>Start Date:</label><br>
-    <input type="month" id="modalStart"><br><br>
+        <label>End Date:</label><br>
+        <input type="month" id="modalEnd">
+        <label>
+            <input type="checkbox" id="presentCheck" onchange="togglePresent()"> Present
+        </label>
+        <br><br>
 
-    <label>End Date:</label><br>
-    <input type="month" id="modalEnd">
-    <label>
-        <input type="checkbox" id="presentCheck" onchange="togglePresent()"> Present
-    </label>
-    <br><br>
+        <div id="dynamicFields"></div>
 
-    <div id="dynamicFields"></div>
+        <button type="button" onclick="addFieldPrompt('text')">Add Text Field</button>
+        <br><br>
 
-    <button type="button" onclick="addFieldPrompt('text')">Add Text Field</button>
-    <br><br>
-
-    <button type="button" onclick="saveEntry()">Save</button>
-    <button type="button" id="deleteBtn" onclick="deleteEntry()" style="display:none;">Delete</button>
-    <button type="button" onclick="closeModal()">Cancel</button>
-  </div>
+        <button type="button" onclick="saveEntry()">Save</button>
+        <button type="button" id="deleteBtn" onclick="deleteEntry()" style="display:none;">Delete</button>
+        <button type="button" onclick="closeModal()">Cancel</button>
+    </div>
 </div>
 
-<!-- USER MODAL -->
-<div id="userModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-background:rgba(0,0,0,0.5); z-index:3000;">
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-backdrop">
+    <div class="modal-box">
+        <h3>Manage Lanes</h3>
 
-  <div style="background:white; width:320px; margin:100px auto; padding:20px; border-radius:10px;">
-    <h3>User Account</h3>
-
-    {% if current_user.username != "Guest" %}
-        <p>Logged in as <strong>{{ current_user.username }}</strong></p>
-        <form method="post" action="{% url 'logout' %}">
+        <!-- ADD LANE -->
+        <form method="post" style="margin-bottom:15px;">
             {% csrf_token %}
-            <button>Logout</button>
-        </form>
-    {% else %}
-        <h4>Login</h4>
-        <form method="post" action="{% url 'login' %}">
-            {% csrf_token %}
-            <input type="text" name="username" placeholder="Username" required><br><br>
-            <input type="password" name="password" placeholder="Password" required><br><br>
-            <button>Login</button>
+            <input type="text" name="lane_name" placeholder="New lane name">
+            <button name="add_lane">Add</button>
         </form>
 
         <hr>
 
-        <h4>Create Account</h4>
-        <form method="post" action="{% url 'register' %}">
-            {% csrf_token %}
-            <input type="text" name="username" placeholder="New username" required><br><br>
-            <input type="password" name="password" placeholder="New password" required><br><br>
-            <button>Create Account</button>
-        </form>
-    {% endif %}
-
-    <br>
-    <button onclick="closeUserModal()">Close</button>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div id="settingsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-background:rgba(0,0,0,0.5); z-index:2000;">
-
-  <div style="background:white; width:350px; margin:100px auto; padding:20px; border-radius:10px;">
-    <h3>Manage Lanes</h3>
-
-    <!-- ADD LANE -->
-    <form method="post" style="margin-bottom:15px;">
-        {% csrf_token %}
-        <input type="text" name="lane_name" placeholder="New lane name">
-        <button name="add_lane">Add</button>
-    </form>
-
-    <hr>
-
-    <!-- EXISTING LANES -->
-    {% for lane in lanes %}
+        <!-- EXISTING LANES -->
+        {% for lane in lanes %}
         <form method="post" style="margin-bottom:10px;">
             {% csrf_token %}
             <input type="hidden" name="lane_id" value="{{ lane.id }}">
-
             <input type="text" name="new_name" value="{{ lane.name }}">
             <button name="rename_lane">Rename</button>
             <button name="delete_lane"
@@ -201,62 +121,61 @@ background:rgba(0,0,0,0.5); z-index:2000;">
                 Delete
             </button>
         </form>
-    {% endfor %}
+        {% endfor %}
 
-    <button onclick="closeSettings()">Close</button>
-  </div>
+        <button onclick="closeSettings()">Close</button>
+    </div>
 </div>
 
 <!-- LANES AND ENTRIES -->
+<h1>Resume Engine</h1>
 <div class="lanes">
     {% for lane in lanes %}
     <div class="lane">
         <h3>{{ lane.name }}</h3>
-
-        <!-- add button -->
         <button onclick="addEntry('{{ lane.name }}', '{{ lane.id }}')">+</button>
 
-        <!-- bubbles -->
         {% for entry in lane.sorted_entries %}
-            <div class="bubble"
-                data-id="{{ entry.id }}"
-                data-name="{{ entry.name }}"
-                data-lane="{{ lane.name }}"
-                data-laneid="{{ lane.id }}"
-                data-details='{{ entry.details_json|safe }}'
-                onclick="editEntry(this)">
+        <div class="bubble"
+            data-id="{{ entry.id }}"
+            data-name="{{ entry.name }}"
+            data-lane="{{ lane.name }}"
+            data-laneid="{{ lane.id }}"
+            data-details='{{ entry.details_json|safe }}'
+            onclick="editEntry(this)">
 
-                {{ entry.name }}<br>
-                {% if entry.details.start_date %}
-                    <small>
-                    {{ entry.details.start_date|monthyear }} - 
-                    {% if entry.details.end_date == "Present" %}
-                        Present
-                    {% elif entry.details.end_date %}
-                        {{ entry.details.end_date|monthyear }}
-                    {% endif %}
-                    </small><br>
+            {{ entry.name }}<br>
+            {% if entry.details.start_date %}
+                <small>
+                {{ entry.details.start_date|monthyear }} -
+                {% if entry.details.end_date == "Present" %}
+                    Present
+                {% elif entry.details.end_date %}
+                    {{ entry.details.end_date|monthyear }}
                 {% endif %}
+                </small><br>
+            {% endif %}
 
-                {% for key, value in entry.details.items %}
-                    {% if key != "start_date" and key != "end_date" and value %}
-                        <small>{{ key }}: {{ value }}</small><br>
-                    {% endif %}
-                {% endfor %}
-            </div>
+            {% for key, value in entry.details.items %}
+                {% if key != "start_date" and key != "end_date" and value %}
+                    <small>{{ key }}: {{ value }}</small><br>
+                {% endif %}
+            {% endfor %}
+        </div>
         {% endfor %}
     </div>
     {% endfor %}
 </div>
 
-<!-- JAVASCRIPT -->
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
 let currentLaneName = null;
 let currentLaneId = null;
 let currentProjectId = null;
 let currentDetails = {};
 
-/* Add entry function clears modal, sets current lane, and shows modal for new entry. */
 function addEntry(laneName, laneId) {
     currentLaneName = laneName;
     currentLaneId = laneId;
@@ -275,87 +194,78 @@ function addEntry(laneName, laneId) {
     document.getElementById("modal").style.display = "block";
 }
 
-/* Edit entry function populates modal with existing data and shows delete button. */
 function editEntry(el) {
     currentProjectId = el.dataset.id;
     currentLaneName = el.dataset.lane;
     currentLaneId = el.dataset.laneid;
     currentDetails = JSON.parse(el.dataset.details || "{}");
 
-    /* Populate modal fields with existing entry data */
     document.getElementById("modalTitle").innerText = "Edit " + currentLaneName;
     document.getElementById("modalName").value = el.dataset.name || "";
     document.getElementById("modalStart").value = currentDetails.start_date || "";
-    
+
     if (currentDetails.end_date === "Present") {
         document.getElementById("modalEnd").value = "";
         document.getElementById("modalEnd").disabled = true;
         document.getElementById("presentCheck").checked = true;
-    } else if (currentDetails.end_date) {
-        document.getElementById("modalEnd").value = currentDetails.end_date;
+    } else {
+        document.getElementById("modalEnd").value = currentDetails.end_date || "";
         document.getElementById("modalEnd").disabled = false;
         document.getElementById("presentCheck").checked = false;
     }
 
     renderFields();
 
-    /* Show delete button in edit mode*/
     document.getElementById("deleteBtn").style.display = "inline";
     document.getElementById("modal").style.display = "block";
 }
 
-/* Close modal simply hides the modal div. */
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
 
-/* Delete entry function confirms deletion, sets form data, and submits with delete flag. */
 function deleteEntry() {
     if (!confirm("Delete this entry?")) return;
 
+    // Remove any previous delete inputs to avoid duplicates
+    document.querySelectorAll("#mainForm input[name='delete']").forEach(el => el.remove());
+
     document.getElementById("project_id").value = currentProjectId;
-    document.getElementById("mainForm").action = "";
-    
     let input = document.createElement("input");
     input.type = "hidden";
     input.name = "delete";
     input.value = "1";
     document.getElementById("mainForm").appendChild(input);
-
     document.getElementById("mainForm").submit();
 }
 
-/* Save entry function validates input, sets form data, and submits for create/edit. */
 function saveEntry() {
     const name = document.getElementById("modalName").value;
     const start = document.getElementById("modalStart").value;
     const endInput = document.getElementById("modalEnd").value;
     const isPresent = document.getElementById("presentCheck").checked;
 
-    currentDetails.start_date = start || "";
-    currentDetails.end_date = isPresent ? "Present" : endInput || "";
-
-    if (!document.getElementById("modalName").value) {
+    if (!name) {
         alert("Entry name is required");
         return;
     }
-    if (!isPresent && start && endInput) {
-        if (endInput < start) {
-            alert("End date cannot be earlier than the start date.");
-            return;
-        }
+    if (!isPresent && start && endInput && endInput < start) {
+        alert("End date cannot be earlier than the start date.");
+        return;
     }
+
+    currentDetails.start_date = start || "";
+    currentDetails.end_date = isPresent ? "Present" : endInput || "";
 
     document.getElementById("project_id").value = currentProjectId || "";
     document.getElementById("lane").value = currentLaneId;
-    document.getElementById("name").value = document.getElementById("modalName").value;
+    document.getElementById("name").value = name;
     document.getElementById("detailsInput").value = JSON.stringify(currentDetails);
 
     closeModal();
     document.getElementById("mainForm").submit();
 }
 
-/* Dynamically show the fields that are in the entry's details. This allows for flexible fields beyond just start/end dates. */
 function renderFields() {
     const container = document.getElementById("dynamicFields");
     container.innerHTML = "";
@@ -364,23 +274,15 @@ function renderFields() {
         if (key === "start_date" || key === "end_date") continue;
 
         const value = currentDetails[key];
-
-        // wrapper div per field
         const fieldWrapper = document.createElement("div");
         fieldWrapper.style.marginBottom = "10px";
 
-        // delete button
         const deleteBtn = document.createElement("button");
         deleteBtn.innerText = "✖";
         deleteBtn.style.marginRight = "6px";
         deleteBtn.style.fontSize = "12px";
-        deleteBtn.style.cursor = "pointer";
-        deleteBtn.onclick = () => {
-            delete currentDetails[key];
-            renderFields();
-        };
+        deleteBtn.onclick = () => { delete currentDetails[key]; renderFields(); };
 
-        // label
         const label = document.createElement("label");
         label.innerText = key + ":";
 
@@ -388,70 +290,32 @@ function renderFields() {
         fieldWrapper.appendChild(label);
         fieldWrapper.appendChild(document.createElement("br"));
 
-        // TEXT FIELD
         if (typeof value === "string") {
             const input = document.createElement("input");
             input.type = "text";
             input.value = value;
-            input.oninput = () => {
-                currentDetails[key] = input.value;
-            };
-
+            input.oninput = () => { currentDetails[key] = input.value; };
             fieldWrapper.appendChild(input);
-        }
-
-        // LIST FIELD (future)
-        else if (Array.isArray(value)) {
-            const p = document.createElement("p");
-            p.innerText = "(list field)";
-            fieldWrapper.appendChild(p);
-        }
-
-        // ENTRY FIELD (future)
-        else if (value === "__NEW_ENTRY__" || typeof value === "number") {
-            const p = document.createElement("p");
-            p.innerText = "(Entry)";
-            fieldWrapper.appendChild(p);
         }
 
         container.appendChild(fieldWrapper);
     }
 }
 
-/* Add field prompt allows user to add custom fields to the entry. It updates the currentDetails object and re-renders the fields. */
-function addFieldPrompt(fieldType='text') {
+function addFieldPrompt(fieldType = 'text') {
     const name = prompt("Enter field name:");
     if (!name) return;
-    if (currentDetails[name]) {
+    if (currentDetails.hasOwnProperty(name)) {
         alert("Field already exists.");
         return;
     }
-
-    /* Initialize the new field based on the specified type. Currently supports text, list, and entry types. */
-    if (fieldType === "text") {
-        currentDetails[name] = "";
-    }
-    else if (fieldType === "list") {
-        currentDetails[name] = [];
-    }
-    else if (fieldType === "entry") {
-        currentDetails[name] = "__NEW ENTRY__"; // Placeholder for future entry reference
-    }
-    else {
-        alert("Unknown field type.");
-        return;
-    }
-
     currentDetails[name] = "";
     renderFields();
 }
 
-/* Toggle present function disables end date input and clears its value when "present" is checked, and re-enables it when unchecked. */
 function togglePresent() {
     const endInput = document.getElementById("modalEnd");
-    const presentBox = document.getElementById("presentCheck");
-
-    if (presentBox.checked) {
+    if (document.getElementById("presentCheck").checked) {
         endInput.value = "";
         endInput.disabled = true;
     } else {
@@ -459,16 +323,6 @@ function togglePresent() {
     }
 }
 
-/* User Modal Functions */
-function openUserModal() {
-    document.getElementById("userModal").style.display = "block";
-}
-function closeUserModal() {
-    document.getElementById("userModal").style.display = "none";
-}
-
-
-/* Settings Functions */
 function openSettings() {
     document.getElementById("settingsModal").style.display = "block";
 }
@@ -476,7 +330,11 @@ function closeSettings() {
     document.getElementById("settingsModal").style.display = "none";
 }
 
+// Close modals on backdrop click
+["modal", "settingsModal"].forEach(id => {
+    document.getElementById(id).addEventListener("click", function(e) {
+        if (e.target === this) this.style.display = "none";
+    });
+});
 </script>
-
-</body>
-</html>
+{% endblock %}
