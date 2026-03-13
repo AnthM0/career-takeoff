@@ -1,0 +1,319 @@
+{% load monthyear %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Career Takeoff{% endblock %}</title>
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* MODAL BACKDROP */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+        }
+
+        /* MODAL BOX */
+        .modal-box {
+            background: white;
+            width: 320px;
+            margin: 100px auto;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        /* USER BUTTON */
+        #userBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 8px 14px;
+            border-radius: 20px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        #userBtn:hover {
+            background: #3d5166;
+        }
+
+        /* TIMER */
+        #timerWidget {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            border-radius: 16px;
+            padding: 8px 14px;
+            font-size: 15px;
+            cursor: pointer;
+            z-index: 1000;
+            user-select: none;
+        }
+
+        #timerWidget:hover {
+            background: #3d5166;
+        }
+
+        #timerModal input[type="number"] {
+            width: 60px;
+            font-size: 16px;
+            padding: 4px;
+            text-align: center;
+        }
+
+        /* MESSAGES */
+        .messages {
+            margin: 20px auto;
+            max-width: 400px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+
+        .message.error {
+            background: #ffe0e0;
+            color: #a00;
+            border: 1px solid #f5c6c6;
+        }
+
+        .message.success {
+            background: #e0ffe8;
+            color: #060;
+            border: 1px solid #b2dfbe;
+        }
+
+        {% block extra_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+
+<!-- USER BUTTON -->
+<button id="userBtn" onclick="openUserModal()">
+    👤 {{ current_user.username|default:"Guest" }}
+</button>
+
+<!-- TIMER WIDGET -->
+<div id="timerWidget" onclick="openTimerModal()">
+    ⏱️ <span id="timerDisplay">15:00</span>
+</div>
+
+<!-- USER MODAL -->
+<div id="userModal" class="modal-backdrop">
+    <div class="modal-box">
+        <h3>User Account</h3>
+
+        {% if current_user.username != "Guest" %}
+            <p>Logged in as <strong>{{ current_user.username }}</strong></p>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button>Logout</button>
+            </form>
+        {% else %}
+            <h4>Login</h4>
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                <input type="text" name="username" placeholder="Username" required><br><br>
+                <input type="password" name="password" placeholder="Password" required><br><br>
+                <button>Login</button>
+            </form>
+
+            <hr>
+
+            <h4>Create Account</h4>
+            <form method="post" action="{% url 'register' %}">
+                {% csrf_token %}
+                <input type="text" name="username" placeholder="New username" required><br><br>
+                <input type="password" name="password" placeholder="New password" required><br><br>
+                <button>Create Account</button>
+            </form>
+        {% endif %}
+
+        <br>
+        <button onclick="closeUserModal()">Close</button>
+    </div>
+</div>
+
+<!-- TIMER MODAL -->
+<div id="timerModal" class="modal-backdrop">
+    <div class="modal-box" style="text-align:center;">
+        <h3>Timer</h3>
+
+        <div style="font-size: 48px; font-weight: bold; margin: 10px 0;" id="timerBig">15:00</div>
+
+        <div style="margin-bottom: 16px;">
+            <label>Set duration: </label>
+            <input type="number" id="timerMinInput" min="1" max="180" value="15"> min
+            <button type="button" onclick="applyDuration()">Set</button>
+        </div>
+
+        <button type="button" onclick="startTimer()">▶ Start</button>
+        <button type="button" onclick="pauseTimer()">⏸ Pause</button>
+        <button type="button" onclick="resetTimer()">↺ Reset</button>
+        <br><br>
+        <button type="button" onclick="closeTimerModal()">Close</button>
+    </div>
+</div>
+
+<!-- MESSAGES -->
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="message {{ message.tags }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- PAGE CONTENT -->
+{% block content %}{% endblock %}
+
+<!-- BASE SCRIPTS -->
+<script>
+    function openUserModal() {
+        document.getElementById("userModal").style.display = "block";
+    }
+    function closeUserModal() {
+        document.getElementById("userModal").style.display = "none";
+    }
+
+    // Close modal when clicking backdrop
+    document.getElementById("userModal").addEventListener("click", function(e) {
+        if (e.target === this) closeUserModal();
+    });
+
+    // TIMER — persists across pages via sessionStorage
+    const TIMER_KEY = "ct_timer";
+
+    function timerSave() {
+        sessionStorage.setItem(TIMER_KEY, JSON.stringify({
+            duration: timerDuration,
+            remaining: timerRemaining,
+            running: timerRunning,
+            savedAt: timerRunning ? Date.now() : null
+        }));
+    }
+
+    function timerLoad() {
+        const raw = sessionStorage.getItem(TIMER_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+
+        timerDuration = data.duration;
+
+        // If timer was running when user left, calculate how much time passed
+        if (data.running && data.savedAt) {
+            const elapsed = Math.floor((Date.now() - data.savedAt) / 1000);
+            timerRemaining = Math.max(0, data.remaining - elapsed);
+        } else {
+            timerRemaining = data.remaining;
+        }
+
+        timerRunning = false; // always start paused on load, then resume if needed
+        updateTimerDisplays();
+        document.getElementById("timerMinInput").value = Math.floor(timerDuration / 60);
+
+        // Resume if it was running
+        if (data.running && timerRemaining > 0) {
+            startTimer();
+        }
+    }
+
+    let timerDuration = 15 * 60;
+    let timerRemaining = timerDuration;
+    let timerInterval = null;
+    let timerRunning = false;
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function updateTimerDisplays() {
+        const formatted = timerRemaining > 0 ? formatTime(timerRemaining) : "Done";
+        document.getElementById("timerDisplay").innerText = formatted;
+        document.getElementById("timerBig").innerText = formatted;
+    }
+
+    function startTimer() {
+        if (timerRunning || timerRemaining <= 0) return;
+        timerRunning = true;
+        timerInterval = setInterval(() => {
+            timerRemaining--;
+            updateTimerDisplays();
+            timerSave();
+            if (timerRemaining <= 0) {
+                clearInterval(timerInterval);
+                timerRunning = false;
+                timerSave();
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        timerSave();
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        timerRemaining = timerDuration;
+        updateTimerDisplays();
+        timerSave();
+    }
+
+    function applyDuration() {
+        const mins = parseInt(document.getElementById("timerMinInput").value);
+        if (!mins || mins < 1) return;
+        clearInterval(timerInterval);
+        timerRunning = false;
+        timerDuration = mins * 60;
+        timerRemaining = timerDuration;
+        updateTimerDisplays();
+        timerSave();
+    }
+
+    function openTimerModal() {
+        document.getElementById("timerModal").style.display = "block";
+    }
+
+    function closeTimerModal() {
+        document.getElementById("timerModal").style.display = "none";
+    }
+
+    document.getElementById("timerModal").addEventListener("click", function(e) {
+        if (e.target === this) closeTimerModal();
+    });
+
+    // Save timer state before navigating away
+    window.addEventListener("beforeunload", timerSave);
+
+    // Load timer state on page load
+    timerLoad();
+</script>
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>
